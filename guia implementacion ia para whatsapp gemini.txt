@@ -1,0 +1,96 @@
+Markdown
+
+# 🤖 Guía Completa: Agente de IA Multimodal para WhatsApp desde Cero (Python + Gemini)
+
+Este documento resume los pasos, tecnologías y consideraciones para construir un agente de IA para WhatsApp que consulta datos de un archivo Excel y maneja entradas de texto, audio e imagen.
+
+---
+
+## 1. Tecnologías Clave de la Solución
+
+| Componente | Herramienta | Función |
+| :--- | :--- | :--- |
+| **Backend API** | **Python + Flask** | Servidor web que recibirá los mensajes (webhook). |
+| **API de WhatsApp** | **Twilio** o **Meta Cloud API** | Para la integración de mensajería (entrada y salida). |
+| **Base de Datos** | **Pandas** | Librería de Python para leer, manipular y buscar en el archivo `.xlsx`. |
+| **Agente de IA** | **Google Gemini API** | Proporciona la inteligencia multimodal (texto, audio, imagen) y la memoria conversacional. |
+| **Despliegue Local** | **ngrok** | Herramienta para exponer el servidor Flask local a una URL pública (necesaria para el webhook). |
+
+---
+
+## 2. Guía de Implementación Inicial (Python)
+
+### A. Configuración del Entorno
+1.  **Entorno Virtual:** Crear y activar un entorno virtual.
+2.  **Instalar Librerías:**
+    ```bash
+    pip install Flask pandas twilio google-genai openpyxl python-dotenv requests
+    ```
+
+### B. Lógica de Consulta de Datos (Pandas)
+Tu script (`app.py`) debe usar la librería **Pandas** para cargar el archivo `inventario.xlsx` y usar la IA para determinar qué fila o columna buscar.
+
+**Principio de la Función `consultar_excel(query_texto)`:**
+1.  Cargar `df = pd.read_excel('inventario.xlsx')`.
+2.  Usar Gemini para interpretar el `query_texto` y generar una respuesta concisa con la información encontrada en el `DataFrame (df)`.
+
+### C. Webhook de Flask
+Definir una ruta para que Twilio/Meta envíe los mensajes (`/whatsapp`):
+
+```python
+from flask import Flask, request
+from twilio.twiml.messaging_response import MessagingResponse
+
+# ... (código de inicialización de Gemini y Pandas) ...
+
+@app.route("/whatsapp", methods=['POST'])
+def whatsapp_webhook():
+    incoming_msg = request.values.get('Body', '')
+    # 1. Procesar el mensaje (texto, audio, imagen)
+    # 2. Obtener la respuesta de Gemini/Excel
+    # 3. Enviar respuesta con MessagingResponse()
+    # ...
+3. API de IA: Gemini (Recomendada)
+Gemini 1.5 Flash es la mejor opción por su multimodalidad nativa y su generoso nivel gratuito.
+
+A. Cómo Obtener la API Key
+Ve a Google AI Studio.
+
+Haz clic en "Create API key" y copia la clave generada inmediatamente.
+
+Seguridad: Guarda la clave en un archivo .env para evitar exponerla en tu código: GEMINI_API_KEY="TU_CLAVE".
+
+B. Límites del Nivel Gratuito (Free Tier)
+Los límites son suficientes para desarrollo y proyectos personales:
+
+Métrica	Límite Típico (Gemini 1.5 Flash)
+Peticiones por Día (RPD)	1,500 - 2,000 RPD
+Peticiones por Minuto (RPM)	Hasta 60 RPM
+Ventana de Contexto	Hasta 1 millón de tokens (permite procesar grandes datos o historiales largos).
+
+Exportar a Hojas de cálculo
+4. Gestión de Contexto y Multimodalidad
+A. Manejo del Contexto (Memoria)
+Para que Gemini "recuerde" el historial del chat, debes usar la clase ChatSession en lugar de llamadas simples (generate_content).
+
+Necesidad: Debes almacenar el historial de la sesión (la lista de mensajes) en una base de datos externa (como Redis) para que el estado persista entre cada mensaje de WhatsApp.
+
+Implementación: Utiliza client.chats.create(model="gemini-1.5-flash") y luego chat.send_message(...).
+
+B. Procesamiento de Archivos (Audio e Imagen)
+Cuando WhatsApp envía un archivo, proporciona una URL. Tu código debe:
+
+Descargar: Usar la librería requests para descargar el contenido de la URL proporcionada por Twilio/Meta.
+
+Cargar a Gemini: Usar la función client.files.upload() del SDK de Gemini para subir el archivo.
+
+Ejemplo de llamada multimodal:
+
+Python
+
+# Carga de la imagen o el audio descargado
+file_ref = client.files.upload(file="ruta/al/archivo.jpg")
+prompt = "Revisa esta imagen y busca el producto en el Excel."
+
+# Envío del texto y el archivo juntos
+response = chat.send_message([prompt, file_ref])
