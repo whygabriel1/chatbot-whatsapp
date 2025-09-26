@@ -39,7 +39,7 @@ else:
 logger.info("SiliconFlow API configurada correctamente")
 
 # Variable global para el proveedor de IA activo
-PROVEEDOR_IA_ACTIVO = "gemini"  # "gemini" o "siliconflow"
+PROVEEDOR_IA_ACTIVO = "siliconflow"  # "gemini" o "siliconflow" - FORZAR SILICONFLOW
 
 # Verificar qué modelos están disponibles
 def listar_modelos_disponibles():
