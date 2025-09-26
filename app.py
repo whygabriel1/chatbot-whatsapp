@@ -702,6 +702,53 @@ def set_proveedor():
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
 
+@app.route("/chat", methods=['GET'])
+def chat_page():
+    """Página de chat de pruebas"""
+    return render_template('chat.html')
+
+@app.route("/api/chat", methods=['POST'])
+def chat_api():
+    """API para el chat de pruebas"""
+    try:
+        data = request.get_json()
+        mensaje = data.get('mensaje', '')
+        
+        if not mensaje:
+            return jsonify({"success": False, "error": "Mensaje vacío"})
+        
+        logger.info(f"Chat de pruebas - Mensaje recibido: {mensaje}")
+        
+        # Cargar inventario
+        df = cargar_inventario()
+        
+        # Procesar mensaje igual que en WhatsApp
+        saludo_detectado = any(saludo in mensaje.lower() for saludo in ['hola', 'hi', 'hello', 'buenos días', 'buenas'])
+        
+        if saludo_detectado:
+            logger.info("Chat de pruebas - Mensaje reconocido como saludo")
+            respuesta = CONFIG["saludo_personalizado"]
+        else:
+            # Consultar inventario con el proveedor configurado
+            logger.info(f"Chat de pruebas - Consultando inventario con {PROVEEDOR_IA_ACTIVO}")
+            respuesta = consultar_excel(mensaje, df)
+            logger.info(f"Chat de pruebas - Respuesta generada: {respuesta[:100]}...")
+        
+        return jsonify({
+            "success": True,
+            "respuesta": respuesta,
+            "proveedor": PROVEEDOR_IA_ACTIVO,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+    except Exception as e:
+        logger.error(f"Error en chat de pruebas: {e}")
+        return jsonify({
+            "success": False, 
+            "error": "Error procesando mensaje",
+            "respuesta": "❌ Lo siento, ocurrió un error. Intenta de nuevo."
+        })
+
 if __name__ == '__main__':
     # Verificar configuración
     if not os.getenv('GEMINI_API_KEY'):
