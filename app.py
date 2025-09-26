@@ -510,7 +510,12 @@ def whatsapp_webhook():
         resp = MessagingResponse()
         resp.message(respuesta)
         
-        return str(resp)
+        # Log detallado de la respuesta TwiML
+        twiml_response = str(resp)
+        logger.info(f"Respuesta TwiML generada: {twiml_response}")
+        logger.info(f"Longitud de respuesta: {len(twiml_response)} caracteres")
+        
+        return twiml_response
         
     except Exception as e:
         logger.error(f"Error en webhook: {e}")
