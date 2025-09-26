@@ -43,7 +43,8 @@ def verificar_modelo_disponible():
         logger.info("Modelo gemini-1.5-flash-001 verificado correctamente")
         return True
     except Exception as e:
-        logger.error(f"Error verificando modelo: {e}")
+        logger.warning(f"Advertencia verificando modelo: {e}")
+        logger.warning("La aplicación continuará, pero el modelo podría no estar disponible")
         return False
 
 # Cargar configuración del agente
@@ -91,8 +92,14 @@ def obtener_sesion_chat(usuario_id):
             return json.loads(sesion_data)
     
     # Crear nueva sesión
-    model = genai.GenerativeModel('gemini-1.5-flash-001')
-    chat = model.start_chat(history=[])
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash-001')
+        chat = model.start_chat(history=[])
+    except Exception as e:
+        logger.warning(f"Error con modelo gemini-1.5-flash-001: {e}")
+        logger.warning("Intentando con modelo alternativo...")
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        chat = model.start_chat(history=[])
     
     # Guardar en Redis si está disponible
     if redis_client:
@@ -146,6 +153,18 @@ def consultar_excel(query_texto, df):
         return respuesta
     except Exception as e:
         logger.error(f"Error consultando Excel: {e}")
+        # Si es un error de modelo no disponible, intentar con modelo alternativo
+        if "404" in str(e) or "not found" in str(e).lower():
+            logger.warning("Modelo no disponible, intentando con modelo alternativo...")
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(contexto_excel)
+                respuesta = response.text
+                if len(respuesta) > CONFIG["max_respuesta_caracteres"]:
+                    respuesta = respuesta[:CONFIG["max_respuesta_caracteres"]] + "..."
+                return respuesta
+            except Exception as e2:
+                logger.error(f"Error con modelo alternativo: {e2}")
         return MENSAJES["error_general"]
 
 def procesar_archivo_multimodal(url_archivo, tipo_archivo, usuario_id, df):
@@ -271,10 +290,11 @@ if __name__ == '__main__':
         logger.error("TWILIO_ACCOUNT_SID no configurada")
         exit(1)
     
-    # Verificar que el modelo esté disponible
-    if not verificar_modelo_disponible():
-        logger.error("El modelo de Gemini no está disponible")
-        exit(1)
+    # Verificar que el modelo esté disponible (no crítico para el inicio)
+    modelo_disponible = verificar_modelo_disponible()
+    if not modelo_disponible:
+        logger.warning("El modelo de Gemini no está disponible al inicio, pero la aplicación continuará")
+        logger.warning("Se intentará verificar nuevamente cuando se reciba el primer mensaje")
     
     # Obtener puerto de Railway o usar 5000 por defecto
     port = int(os.getenv('PORT', 5000))
