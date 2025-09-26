@@ -301,6 +301,7 @@ def consultar_excel(query_texto, df):
         return mensaje_error
     
     # Usar el proveedor configurado
+    logger.info(f"Proveedor activo: {PROVEEDOR_IA_ACTIVO}")
     if PROVEEDOR_IA_ACTIVO == "siliconflow":
         logger.info("Usando SiliconFlow para consulta")
         return consultar_con_siliconflow(query_texto, df)
@@ -425,31 +426,10 @@ def whatsapp_webhook():
                 logger.info("Mensaje reconocido como saludo")
                 respuesta = CONFIG["saludo_personalizado"]
             else:
-                # Verificar si hay modelo disponible antes de consultar
-                modelo_funcional = obtener_modelo_funcional()
-                if not modelo_funcional:
-                    logger.warning("No hay modelo disponible, usando respuesta de fallback")
-                    # Respuesta básica sin IA para consultas de inventario
-                    if any(palabra in incoming_msg.lower() for palabra in ['inventario', 'producto', 'stock', 'precio']):
-                        respuesta = f"""📦 **Inventario Disponible** (10 productos)
-
-Los productos disponibles incluyen:
-• Auriculares Sony WH-1000XM4
-• iPhone 15 Pro
-• Samsung Galaxy S24
-• MacBook Pro M3
-• iPad Air
-• Y más productos...
-
-❌ **Servicio de IA temporalmente no disponible**
-Para consultas específicas sobre precios y stock, intenta más tarde."""
-                    else:
-                        respuesta = "❌ Lo siento, el servicio de IA no está disponible en este momento. Puedes intentar más tarde o contactar al administrador."
-                else:
-                    # Consultar inventario con Gemini
-                    logger.info("Consultando inventario con Gemini")
-                    respuesta = consultar_excel(incoming_msg, df)
-                    logger.info(f"Respuesta generada: {respuesta[:100]}...")
+                # Consultar inventario con el proveedor configurado
+                logger.info(f"Consultando inventario con {PROVEEDOR_IA_ACTIVO}")
+                respuesta = consultar_excel(incoming_msg, df)
+                logger.info(f"Respuesta generada: {respuesta[:100]}...")
         
         # Crear respuesta TwiML
         logger.info(f"Enviando respuesta: {respuesta[:100]}...")
