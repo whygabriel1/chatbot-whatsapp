@@ -452,6 +452,8 @@ def get_config():
 @app.route("/api/config", methods=['POST'])
 def save_config():
     """Guardar nueva configuración del agente"""
+    global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
+    
     try:
         data = request.get_json()
         
@@ -472,7 +474,6 @@ def save_config():
             json.dump(config_data, f, ensure_ascii=False, indent=2)
         
         # Recargar configuración en memoria
-        global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
         SYSTEM_PROMPT = config_data["system_prompt"]
         CONFIG = config_data["config_agente"]
         LIMITES = config_data["limites"]
@@ -486,9 +487,10 @@ def save_config():
 @app.route("/api/config/reset", methods=['POST'])
 def reset_config():
     """Restablecer configuración a valores por defecto"""
+    global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
+    
     try:
         # Recargar configuración desde archivos originales
-        global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
         SYSTEM_PROMPT = obtener_system_prompt()
         CONFIG = obtener_configuracion()
         LIMITES = obtener_limites()
