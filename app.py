@@ -104,19 +104,26 @@ def obtener_modelo_funcional():
         'gemini-1.5-flash-001', 
         'gemini-1.5-flash-002',
         'gemini-1.5-pro',
-        'gemini-pro'
+        'gemini-pro',
+        'gemini-1.0-pro'  # Modelo más básico
     ]
     
     for modelo in modelos_a_probar:
         try:
+            logger.info(f"Probando modelo: {modelo}")
             model = genai.GenerativeModel(modelo)
+            logger.info(f"Modelo {modelo} inicializado correctamente")
+            
             # Hacer una prueba rápida
             response = model.generate_content("test")
+            logger.info(f"Modelo {modelo} respondió correctamente: {response.text[:50]}...")
+            
             MODELO_DISPONIBLE = modelo
             logger.info(f"Modelo funcional encontrado: {modelo}")
             return modelo
         except Exception as e:
-            logger.warning(f"Modelo {modelo} no funciona: {e}")
+            logger.error(f"Modelo {modelo} falló con error: {str(e)}")
+            logger.error(f"Tipo de error: {type(e).__name__}")
             continue
     
     logger.error("Ningún modelo de Gemini está disponible")
@@ -332,6 +339,54 @@ def health_check():
         "available_models": listar_modelos_disponibles()
     }
 
+@app.route("/debug", methods=['GET'])
+def debug_api():
+    """Endpoint de debug para probar la API de Gemini"""
+    try:
+        # Probar la API key
+        api_key = os.getenv('GEMINI_API_KEY')
+        if not api_key:
+            return {"error": "GEMINI_API_KEY no configurada"}
+        
+        # Listar modelos
+        models = genai.list_models()
+        available_models = []
+        for model in models:
+            if 'generateContent' in model.supported_generation_methods:
+                available_models.append({
+                    "name": model.name,
+                    "display_name": model.display_name,
+                    "supported_methods": list(model.supported_generation_methods)
+                })
+        
+        # Probar un modelo simple
+        test_result = None
+        try:
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            response = model.generate_content("Hola, ¿funcionas?")
+            test_result = {
+                "success": True,
+                "response": response.text[:100],
+                "model_used": "gemini-1.5-flash"
+            }
+        except Exception as e:
+            test_result = {
+                "success": False,
+                "error": str(e),
+                "error_type": type(e).__name__
+            }
+        
+        return {
+            "api_key_configured": bool(api_key),
+            "api_key_length": len(api_key) if api_key else 0,
+            "available_models": available_models,
+            "test_result": test_result,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+    except Exception as e:
+        return {"error": str(e), "timestamp": datetime.now().isoformat()}
+
 @app.route("/", methods=['GET'])
 def home():
     """Página de inicio"""
@@ -340,6 +395,7 @@ def home():
     <p>Servidor funcionando correctamente.</p>
     <p>Webhook configurado en: /whatsapp</p>
     <p>Estado: <a href="/health">Verificar salud</a></p>
+    <p>Debug: <a href="/debug">Probar API de Gemini</a></p>
     """
 
 if __name__ == '__main__':
