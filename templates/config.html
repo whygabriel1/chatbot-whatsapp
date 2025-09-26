@@ -142,6 +142,21 @@
                             <h4><i class="fas fa-sliders-h text-primary me-2"></i>Configuración General</h4>
                             <p class="text-muted">Ajustes generales del comportamiento del agente</p>
                             
+                            <!-- Selector de Proveedor de IA -->
+                            <div class="mb-4">
+                                <label for="proveedorIA" class="form-label">Proveedor de IA</label>
+                                <div class="d-flex gap-2">
+                                    <select class="form-select" id="proveedorIA" onchange="cambiarProveedor()">
+                                        <option value="gemini">Google Gemini</option>
+                                        <option value="siliconflow">SiliconFlow (DeepSeek)</option>
+                                    </select>
+                                    <button type="button" class="btn btn-outline-primary" onclick="cambiarProveedor()">
+                                        <i class="fas fa-sync-alt"></i>
+                                    </button>
+                                </div>
+                                <div class="form-text">Selecciona qué servicio de IA usar para las consultas.</div>
+                            </div>
+                            
                             <div class="row">
                                 <div class="col-md-6">
                                     <div class="mb-3">
@@ -257,15 +272,25 @@
 
         async function loadConfig() {
             try {
-                const response = await fetch('/api/config');
-                const data = await response.json();
+                // Cargar configuración del agente
+                const configResponse = await fetch('/api/config');
+                const configData = await configResponse.json();
                 
-                if (data.success) {
-                    currentConfig = data.config;
-                    populateForm(data.config);
+                // Cargar proveedor actual
+                const proveedorResponse = await fetch('/api/proveedor');
+                const proveedorData = await proveedorResponse.json();
+                
+                if (configData.success) {
+                    currentConfig = configData.config;
+                    populateForm(configData.config);
                 } else {
-                    showAlert('Error al cargar la configuración: ' + data.error, 'danger');
+                    showAlert('Error al cargar la configuración: ' + configData.error, 'danger');
                 }
+                
+                if (proveedorData.success) {
+                    document.getElementById('proveedorIA').value = proveedorData.proveedor;
+                }
+                
             } catch (error) {
                 showAlert('Error de conexión: ' + error.message, 'danger');
             }
@@ -356,6 +381,30 @@
                 } catch (error) {
                     showAlert('❌ Error de conexión: ' + error.message, 'danger');
                 }
+            }
+        }
+
+        async function cambiarProveedor() {
+            const nuevoProveedor = document.getElementById('proveedorIA').value;
+            
+            try {
+                const response = await fetch('/api/proveedor', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ proveedor: nuevoProveedor })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert(`✅ ${data.message}`, 'success');
+                } else {
+                    showAlert('❌ Error al cambiar proveedor: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('❌ Error de conexión: ' + error.message, 'danger');
             }
         }
 

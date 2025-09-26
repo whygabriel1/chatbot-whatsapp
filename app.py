@@ -24,14 +24,22 @@ logger = logging.getLogger(__name__)
 # Inicializar Flask
 app = Flask(__name__)
 
-# Configurar Gemini
+# Configurar APIs de IA
 gemini_api_key = os.getenv('GEMINI_API_KEY')
-if not gemini_api_key:
-    logger.error("GEMINI_API_KEY no configurada en variables de entorno")
-    raise ValueError("GEMINI_API_KEY es requerida")
+siliconflow_api_key = os.getenv('SILICONFLOW_API_KEY', 'sk-qurqyhsbdzeduzrgfnukhtlzkwmdxinbtdvhaadudsrucecq')
 
-genai.configure(api_key=gemini_api_key)
-logger.info("Gemini API configurada correctamente")
+# Configurar Gemini
+if gemini_api_key:
+    genai.configure(api_key=gemini_api_key)
+    logger.info("Gemini API configurada correctamente")
+else:
+    logger.warning("GEMINI_API_KEY no configurada")
+
+# Configurar SiliconFlow
+logger.info("SiliconFlow API configurada correctamente")
+
+# Variable global para el proveedor de IA activo
+PROVEEDOR_IA_ACTIVO = "gemini"  # "gemini" o "siliconflow"
 
 # Verificar qué modelos están disponibles
 def listar_modelos_disponibles():
@@ -223,8 +231,67 @@ def guardar_sesion_chat(usuario_id, chat):
             'history': chat.history
         }))
 
+def consultar_con_siliconflow(query_texto, df):
+    """Consulta usando SiliconFlow API"""
+    try:
+        # Crear contexto para SiliconFlow
+        contexto = f"""
+        {SYSTEM_PROMPT}
+        
+        INVENTARIO (10 productos):
+        {df.to_string()}
+        
+        CONSULTA: {query_texto}
+        
+        Responde solo con información del inventario.
+        """
+        
+        # Configurar headers para SiliconFlow
+        headers = {
+            'Authorization': f'Bearer {siliconflow_api_key}',
+            'Content-Type': 'application/json'
+        }
+        
+        # Datos para la API
+        data = {
+            "model": "deepseek-ai/DeepSeek-R1-Distill-Qwen-14B",
+            "messages": [
+                {
+                    "role": "user",
+                    "content": contexto
+                }
+            ],
+            "max_tokens": 500,
+            "temperature": 0.7
+        }
+        
+        # Hacer la petición
+        response = requests.post(
+            'https://api.siliconflow.cn/v1/chat/completions',
+            headers=headers,
+            json=data,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            respuesta = result['choices'][0]['message']['content']
+            
+            # Limitar longitud de respuesta
+            if len(respuesta) > CONFIG["max_respuesta_caracteres"]:
+                respuesta = respuesta[:CONFIG["max_respuesta_caracteres"]] + "..."
+            
+            return respuesta
+        else:
+            logger.error(f"Error en SiliconFlow API: {response.status_code} - {response.text}")
+            return MENSAJES["error_general"]
+            
+    except Exception as e:
+        logger.error(f"Error consultando con SiliconFlow: {e}")
+        return MENSAJES["error_general"]
+
 def consultar_excel(query_texto, df):
-    """Consulta el Excel usando Gemini para interpretar la consulta"""
+    """Consulta el Excel usando el proveedor de IA configurado"""
     if df.empty:
         return MENSAJES["error_general"]
     
@@ -233,6 +300,16 @@ def consultar_excel(query_texto, df):
     if not es_valida:
         return mensaje_error
     
+    # Usar el proveedor configurado
+    if PROVEEDOR_IA_ACTIVO == "siliconflow":
+        logger.info("Usando SiliconFlow para consulta")
+        return consultar_con_siliconflow(query_texto, df)
+    else:
+        logger.info("Usando Gemini para consulta")
+        return consultar_con_gemini(query_texto, df)
+
+def consultar_con_gemini(query_texto, df):
+    """Consulta el Excel usando Gemini para interpretar la consulta"""
     # Crear contexto para Gemini con system prompt
     contexto_excel = f"""
     {SYSTEM_PROMPT}
@@ -264,7 +341,7 @@ def consultar_excel(query_texto, df):
         
         return respuesta
     except Exception as e:
-        logger.error(f"Error consultando Excel: {e}")
+        logger.error(f"Error consultando Excel con Gemini: {e}")
         return MENSAJES["error_general"]
 
 def procesar_archivo_multimodal(url_archivo, tipo_archivo, usuario_id, df):
@@ -348,10 +425,31 @@ def whatsapp_webhook():
                 logger.info("Mensaje reconocido como saludo")
                 respuesta = CONFIG["saludo_personalizado"]
             else:
-                # Consultar inventario con Gemini
-                logger.info("Consultando inventario con Gemini")
-                respuesta = consultar_excel(incoming_msg, df)
-                logger.info(f"Respuesta generada: {respuesta[:100]}...")
+                # Verificar si hay modelo disponible antes de consultar
+                modelo_funcional = obtener_modelo_funcional()
+                if not modelo_funcional:
+                    logger.warning("No hay modelo disponible, usando respuesta de fallback")
+                    # Respuesta básica sin IA para consultas de inventario
+                    if any(palabra in incoming_msg.lower() for palabra in ['inventario', 'producto', 'stock', 'precio']):
+                        respuesta = f"""📦 **Inventario Disponible** (10 productos)
+
+Los productos disponibles incluyen:
+• Auriculares Sony WH-1000XM4
+• iPhone 15 Pro
+• Samsung Galaxy S24
+• MacBook Pro M3
+• iPad Air
+• Y más productos...
+
+❌ **Servicio de IA temporalmente no disponible**
+Para consultas específicas sobre precios y stock, intenta más tarde."""
+                    else:
+                        respuesta = "❌ Lo siento, el servicio de IA no está disponible en este momento. Puedes intentar más tarde o contactar al administrador."
+                else:
+                    # Consultar inventario con Gemini
+                    logger.info("Consultando inventario con Gemini")
+                    respuesta = consultar_excel(incoming_msg, df)
+                    logger.info(f"Respuesta generada: {respuesta[:100]}...")
         
         # Crear respuesta TwiML
         logger.info(f"Enviando respuesta: {respuesta[:100]}...")
@@ -508,6 +606,39 @@ def reset_config():
             os.remove('config_dinamico.json')
         
         return jsonify({"success": True, "message": "Configuración restablecida a valores por defecto"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/proveedor", methods=['GET'])
+def get_proveedor():
+    """Obtener el proveedor de IA actual"""
+    return jsonify({
+        "success": True, 
+        "proveedor": PROVEEDOR_IA_ACTIVO,
+        "opciones": ["gemini", "siliconflow"]
+    })
+
+@app.route("/api/proveedor", methods=['POST'])
+def set_proveedor():
+    """Cambiar el proveedor de IA"""
+    global PROVEEDOR_IA_ACTIVO
+    
+    try:
+        data = request.get_json()
+        nuevo_proveedor = data.get('proveedor')
+        
+        if nuevo_proveedor not in ['gemini', 'siliconflow']:
+            return jsonify({"success": False, "error": "Proveedor no válido"})
+        
+        PROVEEDOR_IA_ACTIVO = nuevo_proveedor
+        logger.info(f"Proveedor de IA cambiado a: {nuevo_proveedor}")
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Proveedor cambiado a {nuevo_proveedor}",
+            "proveedor": PROVEEDOR_IA_ACTIVO
+        })
         
     except Exception as e:
         return jsonify({"success": False, "error": str(e)})
