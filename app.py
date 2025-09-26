@@ -33,25 +33,94 @@ if not gemini_api_key:
 genai.configure(api_key=gemini_api_key)
 logger.info("Gemini API configurada correctamente")
 
+# Verificar qué modelos están disponibles
+def listar_modelos_disponibles():
+    """Lista los modelos disponibles en la API de Gemini"""
+    try:
+        models = genai.list_models()
+        available_models = []
+        for model in models:
+            if 'generateContent' in model.supported_generation_methods:
+                available_models.append(model.name)
+        logger.info(f"Modelos disponibles: {available_models}")
+        return available_models
+    except Exception as e:
+        logger.error(f"Error listando modelos: {e}")
+        return []
+
 # Verificar que el modelo esté disponible
 def verificar_modelo_disponible():
     """Verifica que el modelo de Gemini esté disponible"""
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-001')
-        # Intentar una consulta simple para verificar
-        response = model.generate_content("Hola")
-        logger.info("Modelo gemini-1.5-flash-001 verificado correctamente")
-        return True
+        # Primero listar modelos disponibles
+        modelos_disponibles = listar_modelos_disponibles()
+        
+        # Intentar con diferentes modelos en orden de preferencia
+        modelos_a_probar = [
+            'gemini-1.5-flash',
+            'gemini-1.5-flash-001', 
+            'gemini-1.5-flash-002',
+            'gemini-1.5-pro',
+            'gemini-pro'
+        ]
+        
+        for modelo in modelos_a_probar:
+            try:
+                model = genai.GenerativeModel(modelo)
+                response = model.generate_content("Hola")
+                logger.info(f"Modelo {modelo} verificado correctamente")
+                return True, modelo
+            except Exception as e:
+                logger.warning(f"Modelo {modelo} no disponible: {e}")
+                continue
+        
+        logger.error("Ningún modelo de Gemini está disponible")
+        return False, None
+        
     except Exception as e:
         logger.warning(f"Advertencia verificando modelo: {e}")
         logger.warning("La aplicación continuará, pero el modelo podría no estar disponible")
-        return False
+        return False, None
 
 # Cargar configuración del agente
 SYSTEM_PROMPT = obtener_system_prompt()
 CONFIG = obtener_configuracion()
 LIMITES = obtener_limites()
 MENSAJES = obtener_mensajes()
+
+# Variable global para almacenar el modelo que funciona
+MODELO_DISPONIBLE = None
+
+def obtener_modelo_funcional():
+    """Obtiene un modelo de Gemini que funcione"""
+    global MODELO_DISPONIBLE
+    
+    if MODELO_DISPONIBLE:
+        return MODELO_DISPONIBLE
+    
+    # Intentar con diferentes modelos en orden de preferencia
+    modelos_a_probar = [
+        'gemini-1.5-flash',
+        'gemini-1.5-flash-001', 
+        'gemini-1.5-flash-002',
+        'gemini-1.5-pro',
+        'gemini-pro'
+    ]
+    
+    for modelo in modelos_a_probar:
+        try:
+            model = genai.GenerativeModel(modelo)
+            # Hacer una prueba rápida
+            response = model.generate_content("test")
+            MODELO_DISPONIBLE = modelo
+            logger.info(f"Modelo funcional encontrado: {modelo}")
+            return modelo
+        except Exception as e:
+            logger.warning(f"Modelo {modelo} no funciona: {e}")
+            continue
+    
+    logger.error("Ningún modelo de Gemini está disponible")
+    return None
 
 # Configurar Twilio
 twilio_client = Client(
@@ -92,14 +161,13 @@ def obtener_sesion_chat(usuario_id):
             return json.loads(sesion_data)
     
     # Crear nueva sesión
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash-001')
-        chat = model.start_chat(history=[])
-    except Exception as e:
-        logger.warning(f"Error con modelo gemini-1.5-flash-001: {e}")
-        logger.warning("Intentando con modelo alternativo...")
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        chat = model.start_chat(history=[])
+    modelo_funcional = obtener_modelo_funcional()
+    if not modelo_funcional:
+        logger.error("No hay modelos disponibles para crear sesión de chat")
+        return None
+    
+    model = genai.GenerativeModel(modelo_funcional)
+    chat = model.start_chat(history=[])
     
     # Guardar en Redis si está disponible
     if redis_client:
@@ -142,7 +210,12 @@ def consultar_excel(query_texto, df):
     """
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-001')
+        modelo_funcional = obtener_modelo_funcional()
+        if not modelo_funcional:
+            logger.error("No hay modelos disponibles para consultar Excel")
+            return MENSAJES["error_general"]
+        
+        model = genai.GenerativeModel(modelo_funcional)
         response = model.generate_content(contexto_excel)
         
         # Limitar longitud de respuesta
@@ -153,18 +226,6 @@ def consultar_excel(query_texto, df):
         return respuesta
     except Exception as e:
         logger.error(f"Error consultando Excel: {e}")
-        # Si es un error de modelo no disponible, intentar con modelo alternativo
-        if "404" in str(e) or "not found" in str(e).lower():
-            logger.warning("Modelo no disponible, intentando con modelo alternativo...")
-            try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
-                response = model.generate_content(contexto_excel)
-                respuesta = response.text
-                if len(respuesta) > CONFIG["max_respuesta_caracteres"]:
-                    respuesta = respuesta[:CONFIG["max_respuesta_caracteres"]] + "..."
-                return respuesta
-            except Exception as e2:
-                logger.error(f"Error con modelo alternativo: {e2}")
         return MENSAJES["error_general"]
 
 def procesar_archivo_multimodal(url_archivo, tipo_archivo, usuario_id, df):
@@ -262,12 +323,13 @@ def whatsapp_webhook():
 @app.route("/health", methods=['GET'])
 def health_check():
     """Endpoint de salud para verificar que el servidor funciona"""
-    modelo_ok = verificar_modelo_disponible()
+    modelo_funcional = obtener_modelo_funcional()
     return {
-        "status": "ok" if modelo_ok else "error",
+        "status": "ok" if modelo_funcional else "error",
         "timestamp": datetime.now().isoformat(),
-        "gemini_model": "gemini-1.5-flash-001",
-        "model_available": modelo_ok
+        "gemini_model": modelo_funcional or "none",
+        "model_available": bool(modelo_funcional),
+        "available_models": listar_modelos_disponibles()
     }
 
 @app.route("/", methods=['GET'])
@@ -291,10 +353,12 @@ if __name__ == '__main__':
         exit(1)
     
     # Verificar que el modelo esté disponible (no crítico para el inicio)
-    modelo_disponible = verificar_modelo_disponible()
+    modelo_disponible, modelo_usado = verificar_modelo_disponible()
     if not modelo_disponible:
         logger.warning("El modelo de Gemini no está disponible al inicio, pero la aplicación continuará")
-        logger.warning("Se intentará verificar nuevamente cuando se reciba el primer mensaje")
+        logger.warning("Se intentará encontrar un modelo funcional cuando se reciba el primer mensaje")
+    else:
+        logger.info(f"Modelo verificado al inicio: {modelo_usado}")
     
     # Obtener puerto de Railway o usar 5000 por defecto
     port = int(os.getenv('PORT', 5000))
