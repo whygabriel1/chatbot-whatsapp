@@ -19,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Fix: Usar gemini-pro para API gratuita
+# Fix: Usar gemini-1.5-flash (modelo disponible en API gratuita)
 
 # Inicializar Flask
 app = Flask(__name__)
@@ -72,7 +72,7 @@ def obtener_sesion_chat(usuario_id):
             return json.loads(sesion_data)
     
     # Crear nueva sesión
-    model = genai.GenerativeModel('gemini-pro')
+    model = genai.GenerativeModel('gemini-1.5-flash')
     chat = model.start_chat(history=[])
     
     # Guardar en Redis si está disponible
@@ -116,7 +116,7 @@ def consultar_excel(query_texto, df):
     """
     
     try:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-flash')
         response = model.generate_content(contexto_excel)
         
         # Limitar longitud de respuesta
