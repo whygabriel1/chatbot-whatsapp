@@ -341,13 +341,20 @@ def whatsapp_webhook():
                 respuesta = MENSAJES["archivo_no_soportado"]
         else:
             # Mensaje de texto
-            if incoming_msg.lower() in ['hola', 'hi', 'hello', 'buenos días']:
+            logger.info(f"Procesando mensaje de texto: '{incoming_msg}'")
+            # Detectar saludos de manera más flexible
+            saludo_detectado = any(saludo in incoming_msg.lower() for saludo in ['hola', 'hi', 'hello', 'buenos días', 'buenas'])
+            if saludo_detectado:
+                logger.info("Mensaje reconocido como saludo")
                 respuesta = CONFIG["saludo_personalizado"]
             else:
                 # Consultar inventario con Gemini
+                logger.info("Consultando inventario con Gemini")
                 respuesta = consultar_excel(incoming_msg, df)
+                logger.info(f"Respuesta generada: {respuesta[:100]}...")
         
         # Crear respuesta TwiML
+        logger.info(f"Enviando respuesta: {respuesta[:100]}...")
         resp = MessagingResponse()
         resp.message(respuesta)
         
