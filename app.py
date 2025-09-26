@@ -26,7 +26,7 @@ app = Flask(__name__)
 
 # Configurar APIs de IA
 gemini_api_key = os.getenv('GEMINI_API_KEY')
-siliconflow_api_key = os.getenv('SILICONFLOW_API_KEY', 'sk-qurqyhsbdzeduzrgfnukhtlzkwmdxinbtdvhaadudsrucecq')
+siliconflow_api_key = os.getenv('SILICONFLOW_API_KEY')
 
 # Configurar Gemini
 if gemini_api_key:
