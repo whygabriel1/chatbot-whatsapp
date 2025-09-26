@@ -99,13 +99,17 @@ def obtener_modelo_funcional():
         return MODELO_DISPONIBLE
     
     # Intentar con diferentes modelos en orden de preferencia
+    # Basado en los modelos disponibles según el debug
     modelos_a_probar = [
+        'gemini-1.5-flash-latest',
         'gemini-1.5-flash',
-        'gemini-1.5-flash-001', 
-        'gemini-1.5-flash-002',
+        'gemini-1.5-pro-latest',
         'gemini-1.5-pro',
-        'gemini-pro',
-        'gemini-1.0-pro'  # Modelo más básico
+        'gemini-2.0-flash',
+        'gemini-2.0-flash-001',
+        'gemini-2.5-flash',
+        'gemini-pro-latest',
+        'gemini-pro'
     ]
     
     for modelo in modelos_a_probar:
@@ -361,20 +365,26 @@ def debug_api():
         
         # Probar un modelo simple
         test_result = None
-        try:
-            model = genai.GenerativeModel('gemini-1.5-flash')
-            response = model.generate_content("Hola, ¿funcionas?")
-            test_result = {
-                "success": True,
-                "response": response.text[:100],
-                "model_used": "gemini-1.5-flash"
-            }
-        except Exception as e:
-            test_result = {
-                "success": False,
-                "error": str(e),
-                "error_type": type(e).__name__
-            }
+        modelos_debug = ['gemini-1.5-flash-latest', 'gemini-1.5-flash', 'gemini-2.0-flash']
+        
+        for modelo_debug in modelos_debug:
+            try:
+                model = genai.GenerativeModel(modelo_debug)
+                response = model.generate_content("Hola, ¿funcionas?")
+                test_result = {
+                    "success": True,
+                    "response": response.text[:100],
+                    "model_used": modelo_debug
+                }
+                break  # Si funciona, salir del bucle
+            except Exception as e:
+                test_result = {
+                    "success": False,
+                    "error": str(e),
+                    "error_type": type(e).__name__,
+                    "model_tested": modelo_debug
+                }
+                continue
         
         return {
             "api_key_configured": bool(api_key),
