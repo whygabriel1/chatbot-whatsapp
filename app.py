@@ -267,7 +267,7 @@ def consultar_con_siliconflow(query_texto, df):
         
         # Hacer la petición
         response = requests.post(
-            'https://api.siliconflow.cn/v1/chat/completions',
+            'https://api.siliconflow.com/v1/chat/completions',
             headers=headers,
             json=data,
             timeout=30
