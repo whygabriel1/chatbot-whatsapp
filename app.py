@@ -2,7 +2,7 @@ import os
 import json
 import requests
 import pandas as pd
-from flask import Flask, request
+from flask import Flask, request, render_template, jsonify
 from twilio.twiml.messaging_response import MessagingResponse
 from twilio.rest import Client
 import google.generativeai as genai
@@ -83,10 +83,38 @@ def verificar_modelo_disponible():
         return False, None
 
 # Cargar configuración del agente
-SYSTEM_PROMPT = obtener_system_prompt()
-CONFIG = obtener_configuracion()
-LIMITES = obtener_limites()
-MENSAJES = obtener_mensajes()
+def cargar_configuracion_dinamica():
+    """Carga configuración dinámica si existe, sino usa la por defecto"""
+    try:
+        if os.path.exists('config_dinamico.json'):
+            with open('config_dinamico.json', 'r', encoding='utf-8') as f:
+                config_dinamico = json.load(f)
+            logger.info("Configuración dinámica cargada desde config_dinamico.json")
+            return (
+                config_dinamico.get("system_prompt", obtener_system_prompt()),
+                config_dinamico.get("config_agente", obtener_configuracion()),
+                config_dinamico.get("limites", obtener_limites()),
+                config_dinamico.get("mensajes", obtener_mensajes())
+            )
+        else:
+            logger.info("Usando configuración por defecto")
+            return (
+                obtener_system_prompt(),
+                obtener_configuracion(),
+                obtener_limites(),
+                obtener_mensajes()
+            )
+    except Exception as e:
+        logger.error(f"Error cargando configuración dinámica: {e}")
+        logger.info("Usando configuración por defecto como fallback")
+        return (
+            obtener_system_prompt(),
+            obtener_configuracion(),
+            obtener_limites(),
+            obtener_mensajes()
+        )
+
+SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES = cargar_configuracion_dinamica()
 
 # Variable global para almacenar el modelo que funciona
 MODELO_DISPONIBLE = None
@@ -400,13 +428,80 @@ def debug_api():
 @app.route("/", methods=['GET'])
 def home():
     """Página de inicio"""
-    return """
-    <h1>🤖 Agente de IA para WhatsApp</h1>
-    <p>Servidor funcionando correctamente.</p>
-    <p>Webhook configurado en: /whatsapp</p>
-    <p>Estado: <a href="/health">Verificar salud</a></p>
-    <p>Debug: <a href="/debug">Probar API de Gemini</a></p>
-    """
+    return render_template('index.html')
+
+@app.route("/config", methods=['GET'])
+def config_page():
+    """Página de configuración del agente"""
+    return render_template('config.html')
+
+@app.route("/api/config", methods=['GET'])
+def get_config():
+    """Obtener configuración actual del agente"""
+    try:
+        config = {
+            "system_prompt": SYSTEM_PROMPT,
+            "config_agente": CONFIG,
+            "limites": LIMITES,
+            "mensajes": MENSAJES
+        }
+        return jsonify({"success": True, "config": config})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/config", methods=['POST'])
+def save_config():
+    """Guardar nueva configuración del agente"""
+    try:
+        data = request.get_json()
+        
+        # Validar datos
+        if not data:
+            return jsonify({"success": False, "error": "No se recibieron datos"})
+        
+        # Guardar en archivo de configuración
+        config_data = {
+            "system_prompt": data.get("system_prompt", SYSTEM_PROMPT),
+            "config_agente": data.get("config_agente", CONFIG),
+            "limites": data.get("limites", LIMITES),
+            "mensajes": data.get("mensajes", MENSAJES)
+        }
+        
+        # Guardar en archivo JSON
+        with open('config_dinamico.json', 'w', encoding='utf-8') as f:
+            json.dump(config_data, f, ensure_ascii=False, indent=2)
+        
+        # Recargar configuración en memoria
+        global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
+        SYSTEM_PROMPT = config_data["system_prompt"]
+        CONFIG = config_data["config_agente"]
+        LIMITES = config_data["limites"]
+        MENSAJES = config_data["mensajes"]
+        
+        return jsonify({"success": True, "message": "Configuración guardada exitosamente"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
+
+@app.route("/api/config/reset", methods=['POST'])
+def reset_config():
+    """Restablecer configuración a valores por defecto"""
+    try:
+        # Recargar configuración desde archivos originales
+        global SYSTEM_PROMPT, CONFIG, LIMITES, MENSAJES
+        SYSTEM_PROMPT = obtener_system_prompt()
+        CONFIG = obtener_configuracion()
+        LIMITES = obtener_limites()
+        MENSAJES = obtener_mensajes()
+        
+        # Eliminar archivo de configuración dinámica si existe
+        if os.path.exists('config_dinamico.json'):
+            os.remove('config_dinamico.json')
+        
+        return jsonify({"success": True, "message": "Configuración restablecida a valores por defecto"})
+        
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)})
 
 if __name__ == '__main__':
     # Verificar configuración

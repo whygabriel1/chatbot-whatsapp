@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>⚙️ Configuración del Agente - WhatsApp IA</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+        .main-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        .config-section {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            margin: 20px 0;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .btn-save {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-reset {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            color: white;
+            font-weight: 600;
+        }
+        .btn-back {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            border-radius: 25px;
+            padding: 12px 30px;
+            color: white;
+            font-weight: 600;
+        }
+        .form-control, .form-select {
+            border-radius: 10px;
+            border: 2px solid #e9ecef;
+            padding: 12px 15px;
+        }
+        .form-control:focus, .form-select:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+        }
+        .alert-custom {
+            border-radius: 15px;
+            border: none;
+        }
+        .nav-tabs .nav-link {
+            border-radius: 10px 10px 0 0;
+            border: none;
+            color: #667eea;
+            font-weight: 600;
+        }
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        .tab-content {
+            background: white;
+            border-radius: 0 15px 15px 15px;
+            padding: 25px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+    </style>
+</head>
+<body>
+    <div class="container py-5">
+        <div class="row justify-content-center">
+            <div class="col-lg-10">
+                <div class="main-container p-4">
+                    <div class="d-flex justify-content-between align-items-center mb-4">
+                        <div>
+                            <h1 class="display-5 fw-bold text-primary">
+                                <i class="fas fa-cogs me-3"></i>Configuración del Agente
+                            </h1>
+                            <p class="text-muted">Personaliza el comportamiento y respuestas del agente de IA</p>
+                        </div>
+                        <a href="/" class="btn btn-back">
+                            <i class="fas fa-arrow-left me-2"></i>Volver al Inicio
+                        </a>
+                    </div>
+
+                    <!-- Alertas -->
+                    <div id="alertContainer"></div>
+
+                    <!-- Navegación por pestañas -->
+                    <ul class="nav nav-tabs" id="configTabs" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link active" id="system-prompt-tab" data-bs-toggle="tab" data-bs-target="#system-prompt" type="button" role="tab">
+                                <i class="fas fa-brain me-2"></i>System Prompt
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="config-tab" data-bs-toggle="tab" data-bs-target="#config" type="button" role="tab">
+                                <i class="fas fa-sliders-h me-2"></i>Configuración
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="messages-tab" data-bs-toggle="tab" data-bs-target="#messages" type="button" role="tab">
+                                <i class="fas fa-comments me-2"></i>Mensajes
+                            </button>
+                        </li>
+                        <li class="nav-item" role="presentation">
+                            <button class="nav-link" id="security-tab" data-bs-toggle="tab" data-bs-target="#security" type="button" role="tab">
+                                <i class="fas fa-shield-alt me-2"></i>Seguridad
+                            </button>
+                        </li>
+                    </ul>
+
+                    <div class="tab-content" id="configTabsContent">
+                        <!-- System Prompt -->
+                        <div class="tab-pane fade show active" id="system-prompt" role="tabpanel">
+                            <h4><i class="fas fa-brain text-primary me-2"></i>System Prompt</h4>
+                            <p class="text-muted">Define la personalidad y comportamiento principal del agente</p>
+                            
+                            <div class="mb-3">
+                                <label for="systemPrompt" class="form-label">Prompt del Sistema</label>
+                                <textarea class="form-control" id="systemPrompt" rows="15" placeholder="Escribe aquí el system prompt..."></textarea>
+                                <div class="form-text">Este texto define cómo se comporta el agente y qué puede hacer.</div>
+                            </div>
+                        </div>
+
+                        <!-- Configuración General -->
+                        <div class="tab-pane fade" id="config" role="tabpanel">
+                            <h4><i class="fas fa-sliders-h text-primary me-2"></i>Configuración General</h4>
+                            <p class="text-muted">Ajustes generales del comportamiento del agente</p>
+                            
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="maxRespuesta" class="form-label">Máximo de caracteres por respuesta</label>
+                                        <input type="number" class="form-control" id="maxRespuesta" min="100" max="2000" value="500">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label for="formatoRespuesta" class="form-label">Formato de respuesta</label>
+                                        <select class="form-select" id="formatoRespuesta">
+                                            <option value="amigable">Amigable</option>
+                                            <option value="profesional">Profesional</option>
+                                            <option value="técnico">Técnico</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="usarEmojis" checked>
+                                        <label class="form-check-label" for="usarEmojis">Usar emojis</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="incluirPrecios" checked>
+                                        <label class="form-check-label" for="incluirPrecios">Incluir precios</label>
+                                    </div>
+                                </div>
+                                <div class="col-md-4">
+                                    <div class="form-check form-switch">
+                                        <input class="form-check-input" type="checkbox" id="incluirStock" checked>
+                                        <label class="form-check-label" for="incluirStock">Incluir stock</label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="saludoPersonalizado" class="form-label">Saludo personalizado</label>
+                                <input type="text" class="form-control" id="saludoPersonalizado" placeholder="¡Hola! 👋 Soy tu asistente...">
+                            </div>
+                        </div>
+
+                        <!-- Mensajes -->
+                        <div class="tab-pane fade" id="messages" role="tabpanel">
+                            <h4><i class="fas fa-comments text-primary me-2"></i>Mensajes Personalizados</h4>
+                            <p class="text-muted">Personaliza los mensajes que envía el agente</p>
+                            
+                            <div class="mb-3">
+                                <label for="mensajeSinInfo" class="form-label">Mensaje cuando no hay información</label>
+                                <input type="text" class="form-control" id="mensajeSinInfo" placeholder="❌ No hay información disponible...">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mensajeFueraTema" class="form-label">Mensaje para consultas fuera de tema</label>
+                                <input type="text" class="form-control" id="mensajeFueraTema" placeholder="🤖 Solo puedo ayudarte con consultas sobre inventario...">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mensajeError" class="form-label">Mensaje de error general</label>
+                                <input type="text" class="form-control" id="mensajeError" placeholder="❌ Lo siento, ocurrió un error...">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="mensajeLimite" class="form-label">Mensaje de límite excedido</label>
+                                <input type="text" class="form-control" id="mensajeLimite" placeholder="⚠️ Has alcanzado el límite de consultas...">
+                            </div>
+                        </div>
+
+                        <!-- Seguridad -->
+                        <div class="tab-pane fade" id="security" role="tabpanel">
+                            <h4><i class="fas fa-shield-alt text-primary me-2"></i>Configuración de Seguridad</h4>
+                            <p class="text-muted">Define límites y restricciones de seguridad</p>
+                            
+                            <div class="mb-3">
+                                <label for="maxIntentos" class="form-label">Máximo intentos de consulta por usuario</label>
+                                <input type="number" class="form-control" id="maxIntentos" min="1" max="10" value="3">
+                            </div>
+                            
+                            <div class="mb-3">
+                                <label for="palabrasProhibidas" class="form-label">Palabras prohibidas (separadas por comas)</label>
+                                <input type="text" class="form-control" id="palabrasProhibidas" placeholder="comprar, vender, transacción...">
+                                <div class="form-text">El agente rechazará mensajes que contengan estas palabras.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Botones de acción -->
+                    <div class="d-flex justify-content-between mt-4">
+                        <button type="button" class="btn btn-reset" onclick="resetConfig()">
+                            <i class="fas fa-undo me-2"></i>Restablecer por Defecto
+                        </button>
+                        <button type="button" class="btn btn-save" onclick="saveConfig()">
+                            <i class="fas fa-save me-2"></i>Guardar Configuración
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        let currentConfig = {};
+
+        // Cargar configuración al iniciar
+        document.addEventListener('DOMContentLoaded', function() {
+            loadConfig();
+        });
+
+        async function loadConfig() {
+            try {
+                const response = await fetch('/api/config');
+                const data = await response.json();
+                
+                if (data.success) {
+                    currentConfig = data.config;
+                    populateForm(data.config);
+                } else {
+                    showAlert('Error al cargar la configuración: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('Error de conexión: ' + error.message, 'danger');
+            }
+        }
+
+        function populateForm(config) {
+            // System Prompt
+            document.getElementById('systemPrompt').value = config.system_prompt || '';
+            
+            // Configuración general
+            document.getElementById('maxRespuesta').value = config.config_agente.max_respuesta_caracteres || 500;
+            document.getElementById('formatoRespuesta').value = config.config_agente.formato_respuesta || 'amigable';
+            document.getElementById('usarEmojis').checked = config.config_agente.usar_emojis || false;
+            document.getElementById('incluirPrecios').checked = config.config_agente.incluir_precios || false;
+            document.getElementById('incluirStock').checked = config.config_agente.incluir_stock || false;
+            document.getElementById('saludoPersonalizado').value = config.config_agente.saludo_personalizado || '';
+            
+            // Mensajes
+            document.getElementById('mensajeSinInfo').value = config.mensajes.sin_informacion || '';
+            document.getElementById('mensajeFueraTema').value = config.mensajes.consulta_fuera_tema || '';
+            document.getElementById('mensajeError').value = config.mensajes.error_general || '';
+            document.getElementById('mensajeLimite').value = config.mensajes.limite_excedido || '';
+            
+            // Seguridad
+            document.getElementById('maxIntentos').value = config.limites.max_intentos_consulta || 3;
+            document.getElementById('palabrasProhibidas').value = config.limites.palabras_prohibidas ? config.limites.palabras_prohibidas.join(', ') : '';
+        }
+
+        async function saveConfig() {
+            try {
+                const configData = {
+                    system_prompt: document.getElementById('systemPrompt').value,
+                    config_agente: {
+                        max_respuesta_caracteres: parseInt(document.getElementById('maxRespuesta').value),
+                        formato_respuesta: document.getElementById('formatoRespuesta').value,
+                        usar_emojis: document.getElementById('usarEmojis').checked,
+                        incluir_precios: document.getElementById('incluirPrecios').checked,
+                        incluir_stock: document.getElementById('incluirStock').checked,
+                        saludo_personalizado: document.getElementById('saludoPersonalizado').value
+                    },
+                    mensajes: {
+                        sin_informacion: document.getElementById('mensajeSinInfo').value,
+                        consulta_fuera_tema: document.getElementById('mensajeFueraTema').value,
+                        error_general: document.getElementById('mensajeError').value,
+                        limite_excedido: document.getElementById('mensajeLimite').value
+                    },
+                    limites: {
+                        max_intentos_consulta: parseInt(document.getElementById('maxIntentos').value),
+                        palabras_prohibidas: document.getElementById('palabrasProhibidas').value.split(',').map(s => s.trim()).filter(s => s)
+                    }
+                };
+
+                const response = await fetch('/api/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(configData)
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    showAlert('✅ Configuración guardada exitosamente', 'success');
+                } else {
+                    showAlert('❌ Error al guardar: ' + data.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('❌ Error de conexión: ' + error.message, 'danger');
+            }
+        }
+
+        async function resetConfig() {
+            if (confirm('¿Estás seguro de que quieres restablecer la configuración a los valores por defecto?')) {
+                try {
+                    const response = await fetch('/api/config/reset', {
+                        method: 'POST'
+                    });
+
+                    const data = await response.json();
+                    
+                    if (data.success) {
+                        showAlert('✅ Configuración restablecida exitosamente', 'success');
+                        loadConfig(); // Recargar la configuración
+                    } else {
+                        showAlert('❌ Error al restablecer: ' + data.error, 'danger');
+                    }
+                } catch (error) {
+                    showAlert('❌ Error de conexión: ' + error.message, 'danger');
+                }
+            }
+        }
+
+        function showAlert(message, type) {
+            const alertContainer = document.getElementById('alertContainer');
+            const alertId = 'alert-' + Date.now();
+            
+            alertContainer.innerHTML = `
+                <div id="${alertId}" class="alert alert-${type} alert-custom alert-dismissible fade show" role="alert">
+                    ${message}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                </div>
+            `;
+            
+            // Auto-dismiss after 5 seconds
+            setTimeout(() => {
+                const alert = document.getElementById(alertId);
+                if (alert) {
+                    alert.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>
