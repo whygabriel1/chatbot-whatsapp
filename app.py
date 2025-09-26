@@ -19,13 +19,32 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Fix: Usar gemini-1.5-flash (modelo disponible en API gratuita) - v2
+# Fix: Usar gemini-1.5-flash (modelo disponible en API gratuita) - v3
 
 # Inicializar Flask
 app = Flask(__name__)
 
 # Configurar Gemini
-genai.configure(api_key=os.getenv('GEMINI_API_KEY'))
+gemini_api_key = os.getenv('GEMINI_API_KEY')
+if not gemini_api_key:
+    logger.error("GEMINI_API_KEY no configurada en variables de entorno")
+    raise ValueError("GEMINI_API_KEY es requerida")
+
+genai.configure(api_key=gemini_api_key)
+logger.info("Gemini API configurada correctamente")
+
+# Verificar que el modelo esté disponible
+def verificar_modelo_disponible():
+    """Verifica que el modelo de Gemini esté disponible"""
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash-001')
+        # Intentar una consulta simple para verificar
+        response = model.generate_content("Hola")
+        logger.info("Modelo gemini-1.5-flash-001 verificado correctamente")
+        return True
+    except Exception as e:
+        logger.error(f"Error verificando modelo: {e}")
+        return False
 
 # Cargar configuración del agente
 SYSTEM_PROMPT = obtener_system_prompt()
@@ -72,7 +91,7 @@ def obtener_sesion_chat(usuario_id):
             return json.loads(sesion_data)
     
     # Crear nueva sesión
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    model = genai.GenerativeModel('gemini-1.5-flash-001')
     chat = model.start_chat(history=[])
     
     # Guardar en Redis si está disponible
@@ -116,7 +135,7 @@ def consultar_excel(query_texto, df):
     """
     
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
+        model = genai.GenerativeModel('gemini-1.5-flash-001')
         response = model.generate_content(contexto_excel)
         
         # Limitar longitud de respuesta
@@ -224,7 +243,13 @@ def whatsapp_webhook():
 @app.route("/health", methods=['GET'])
 def health_check():
     """Endpoint de salud para verificar que el servidor funciona"""
-    return {"status": "ok", "timestamp": datetime.now().isoformat()}
+    modelo_ok = verificar_modelo_disponible()
+    return {
+        "status": "ok" if modelo_ok else "error",
+        "timestamp": datetime.now().isoformat(),
+        "gemini_model": "gemini-1.5-flash-001",
+        "model_available": modelo_ok
+    }
 
 @app.route("/", methods=['GET'])
 def home():
@@ -244,6 +269,11 @@ if __name__ == '__main__':
     
     if not os.getenv('TWILIO_ACCOUNT_SID'):
         logger.error("TWILIO_ACCOUNT_SID no configurada")
+        exit(1)
+    
+    # Verificar que el modelo esté disponible
+    if not verificar_modelo_disponible():
+        logger.error("El modelo de Gemini no está disponible")
         exit(1)
     
     # Obtener puerto de Railway o usar 5000 por defecto
