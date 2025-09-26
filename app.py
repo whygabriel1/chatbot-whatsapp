@@ -19,7 +19,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# Fix: Usar gemini-1.5-flash (modelo disponible en API gratuita)
+# Fix: Usar gemini-1.5-flash (modelo disponible en API gratuita) - v2
 
 # Inicializar Flask
 app = Flask(__name__)
